@@ -7,6 +7,7 @@ import {
 } from './lobbyBroadcasts.js'
 import { refreshLobbyNemesisAssignmentsForLobby } from './lobbyNemesis.js'
 import { reconcileActiveMatchState } from './matchResolution.js'
+import { recordMatchParticipantOutcome } from './monitor/monitorStore.js'
 import { clearPlayerMatchRunStateForLobbyReturn } from './playerState.js'
 
 const RETURNED_TO_LOBBY_LOCATION = 'Returned to Lobby'
@@ -23,6 +24,7 @@ export const returnToLobbyAction = (client: Client) => {
 
 	clearCoopSaveVoteForLobby(lobby)
 	pauseLobbyAnteTimerForControllerRelease(lobby, client.id)
+	recordMatchParticipantOutcome(lobby, client, 'returned_to_lobby')
 	clearPlayerMatchRunStateForLobbyReturn(client)
 	refreshLobbyNemesisAssignmentsForLobby(lobby)
 	setClientLocation(client, RETURNED_TO_LOBBY_LOCATION)

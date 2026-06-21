@@ -9,7 +9,10 @@ import {
 import { refreshLobbyNemesisAssignmentsForLobby } from '../lobbyNemesis.js'
 import { leaveLobbyClient } from '../lobbyDeparture.js'
 import { removeLobbyByCode } from '../lobbyRegistry.js'
-import { recordLobbyEvent } from '../monitor/monitorStore.js'
+import {
+	recordLobbyEvent,
+	recordMatchParticipantOutcome,
+} from '../monitor/monitorStore.js'
 import { buildSavedGameState } from './savedState.js'
 import { RECONNECT_GRACE_PERIOD } from './shared.js'
 
@@ -19,8 +22,13 @@ const expireDisconnectedLobbyClient = (lobby: Lobby, client: Client) => {
 		player: client,
 		level: 'warn',
 	})
+	recordMatchParticipantOutcome(lobby, client, 'disconnect_expired', {
+		isDisconnected: true,
+	})
 	lobby.deleteDisconnectedSlot(client.id)
-	leaveLobbyClient(lobby, client, removeLobbyByCode)
+	leaveLobbyClient(lobby, client, removeLobbyByCode, {
+		matchStatus: 'disconnect_expired',
+	})
 	tryStartPendingBlindIfReady(lobby)
 }
 
@@ -70,6 +78,9 @@ export const disconnectLobbyClient = (lobby: Lobby, client: Client) => {
 		player: client,
 		level: 'warn',
 		details: { graceSeconds: RECONNECT_GRACE_PERIOD / 1000 },
+	})
+	recordMatchParticipantOutcome(lobby, client, 'disconnected', {
+		isDisconnected: true,
 	})
 	reserveDisconnectedLobbyClient(lobby, client)
 	lobby.removePlayer(client.id)

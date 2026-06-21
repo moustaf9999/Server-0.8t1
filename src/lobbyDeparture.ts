@@ -9,7 +9,11 @@ import {
 } from './lobbyBroadcasts.js'
 import { refreshLobbyNemesisAssignmentsForLobby } from './lobbyNemesis.js'
 import { reconcileActiveMatchState } from './matchResolution.js'
-import { recordLobbyEvent } from './monitor/monitorStore.js'
+import {
+	recordLobbyEvent,
+	recordMatchParticipantOutcome,
+	type MonitorMatchPlayerStatus,
+} from './monitor/monitorStore.js'
 import { clearPlayerLobbyMembership } from './playerState.js'
 import { sendLobbyServerAction } from './protocol/v2/index.js'
 
@@ -77,6 +81,9 @@ const finalizePlayerDeparture = (
 	lobby: Lobby,
 	client: Client,
 	removeEmptyLobby: (code: string) => void,
+	options: {
+		matchStatus?: MonitorMatchPlayerStatus
+	} = {},
 ) => {
 	const wasInMatch = client.isInMatch
 
@@ -85,6 +92,13 @@ const finalizePlayerDeparture = (
 		excludedPlayerId: client.id,
 	})
 	clearDisconnectedSlotIfPresent(lobby, client.id)
+	if (wasInMatch) {
+		recordMatchParticipantOutcome(
+			lobby,
+			client,
+			options.matchStatus ?? 'left_lobby',
+		)
+	}
 	lobby.removePlayer(client.id)
 	clearPlayerLobbyMembership(client)
 	recordLobbyEvent(lobby, 'player.left', `${client.username} left the lobby`, {
@@ -100,12 +114,25 @@ const finalizeDisconnectedSlotDeparture = (
 	playerId: string,
 	wasInMatch: boolean,
 	removeEmptyLobby: (code: string) => void,
+	options: {
+		matchStatus?: MonitorMatchPlayerStatus
+	} = {},
 ) => {
-	if (!clearDisconnectedSlotIfPresent(lobby, playerId)) {
+	const slot = lobby.getDisconnectedSlot(playerId)
+	if (!slot) {
 		return
 	}
 
+	clearDisconnectedSlotIfPresent(lobby, playerId)
 	clearCoopSaveVoteForLobby(lobby)
+	if (wasInMatch) {
+		recordMatchParticipantOutcome(
+			lobby,
+			slot.savedState,
+			options.matchStatus ?? 'disconnect_expired',
+			{ isDisconnected: true },
+		)
+	}
 	recordLobbyEvent(lobby, 'player.slot_expired', 'Disconnected player slot expired', {
 		details: { playerId, wasInMatch },
 	})
@@ -118,8 +145,11 @@ export const leaveLobbyClient = (
 	lobby: Lobby,
 	client: Client,
 	removeEmptyLobby: (code: string) => void,
+	options: {
+		matchStatus?: MonitorMatchPlayerStatus
+	} = {},
 ) => {
-	finalizePlayerDeparture(lobby, client, removeEmptyLobby)
+	finalizePlayerDeparture(lobby, client, removeEmptyLobby, options)
 }
 
 export const kickLobbyPlayer = (
@@ -139,6 +169,7 @@ export const kickLobbyPlayer = (
 			playerId,
 			disconnectedSlot.savedState.isInMatch,
 			removeEmptyLobby,
+			{ matchStatus: 'kicked' },
 		)
 		return
 	}
@@ -146,7 +177,9 @@ export const kickLobbyPlayer = (
 	recordLobbyEvent(lobby, 'player.kicked', `${client.username} was kicked`, {
 		player: client,
 	})
-	finalizePlayerDeparture(lobby, client, removeEmptyLobby)
+	finalizePlayerDeparture(lobby, client, removeEmptyLobby, {
+		matchStatus: 'kicked',
+	})
 	sendLobbyServerAction(client, {
 		action: 'kickedFromLobby',
 		message: 'You have been kicked from the lobby.',

@@ -13,6 +13,7 @@ import { isDuelsLobbyType } from './lobbyTypes.js'
 import {
 	recordMatchAbandoned,
 	recordMatchFinished,
+	recordMatchParticipantOutcome,
 } from './monitor/monitorStore.js'
 import { clearPlayerMatchParticipation } from './playerState.js'
 import { sendEndgameServerAction } from './protocol/v2/index.js'
@@ -182,6 +183,9 @@ export const resolveSoloEliminations = (
 		return false
 	}
 
+	for (const player of eliminatedPlayers) {
+		recordMatchParticipantOutcome(lobby, player, 'lost_lives')
+	}
 	clearPlayersMatchParticipation(eliminatedPlayers)
 	if (isDuelsLobbyType(lobby.lobbyType) && !options.deferDuelPairing) {
 		startDuelRound(lobby, { broadcast: true })
@@ -239,6 +243,9 @@ export const resolveTeamsGameOver = (
 		getLobbyTeamLives(lobby, eliminatedTeamId) <= 0
 	) {
 		const teamPlayers = getLobbyActiveTeamPlayers(lobby, eliminatedTeamId)
+		for (const player of teamPlayers) {
+			recordMatchParticipantOutcome(lobby, player, 'lost_lives')
+		}
 		clearPlayersMatchParticipation(teamPlayers)
 		refreshLobbyNemesisAssignmentsForLobby(lobby)
 		for (const player of teamPlayers) {

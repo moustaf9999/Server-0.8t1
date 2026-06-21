@@ -27,6 +27,7 @@ import { reconcileActiveMatchState } from './matchResolution.js'
 import {
 	recordLobbyCreated,
 	recordLobbyEvent,
+	recordMatchParticipantOutcome,
 } from './monitor/monitorStore.js'
 import { sendSystemError, sendTeamServerAction } from './protocol/v2/index.js'
 import {
@@ -169,6 +170,11 @@ export const rejoinLobbyAction = (
 	recordLobbyEvent(lobby, 'player.rejoined', `${client.username} rejoined the lobby`, {
 		player: client,
 	})
+	if (savedState.isInMatch) {
+		recordMatchParticipantOutcome(lobby, client, 'in_match', {
+			reason: 'rejoined',
+		})
+	}
 	const resolvedTeamBlindState = applyResolvedTeamBlindStateOnRejoin(
 		lobby,
 		client,

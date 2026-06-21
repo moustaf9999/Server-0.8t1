@@ -473,6 +473,44 @@ function renderPlayer(player) {
 		'</div>';
 }
 
+function statusPillClass(status) {
+	if (status === 'winner') return 'green';
+	if (status === 'lost' || status === 'lost_lives') return 'red';
+	if (status === 'returned_to_lobby' || status === 'left_lobby' || status === 'kicked') return 'orange';
+	if (status === 'disconnected' || status === 'disconnect_expired') return 'red';
+	if (status === 'remaining_abandoned' || status === 'abandoned' || status === 'no_result') return 'orange';
+	return 'purple';
+}
+
+function renderMatchPlayer(player) {
+	const label = player.label || player.status || 'Unknown';
+	return '<div class="player ' + (player.isDisconnected ? 'disconnected' : '') + '">' +
+		'<div class="player-head"><b>' + escapeHtml(player.username) + '</b><span>' +
+		'<span class="pill ' + statusPillClass(player.status) + '">' + escapeHtml(label) + '</span>' +
+		'</span></div>' +
+		'<div class="kv">' +
+		'<div>Lives: <b>' + player.lives + '</b></div>' +
+		'<div>Score: <b>' + escapeHtml(player.score) + '</b></div>' +
+		'<div>Ante: <b>' + player.ante + '</b></div>' +
+		'<div>Skips: <b>' + player.skips + '</b></div>' +
+		'<div>Hands: <b>' + player.handsLeft + '</b></div>' +
+		'<div>Money: <b>$' + player.money + '</b></div>' +
+		'<div>Team: <b>' + escapeHtml(player.team ?? 'none') + '</b></div>' +
+		'<div>Location: <b>' + escapeHtml(player.location || 'n/a') + '</b></div>' +
+		(player.reason ? '<div>Reason: <b>' + escapeHtml(player.reason) + '</b></div>' : '') +
+		'<div>Recorded: <b>' + fmtTime(player.at) + '</b></div>' +
+		'</div>' +
+		'</div>';
+}
+
+function renderMatchPlayers(lobby) {
+	const matchPlayers = lobby.matchPlayers || [];
+	if (!matchPlayers.length) return '';
+	return '<div class="section"><div class="section-title">Match Player Outcomes</div><div class="cards">' +
+		matchPlayers.map(renderMatchPlayer).join('') +
+		'</div></div>';
+}
+
 function renderEvents(lobby) {
 	const events = [...(lobby.events || [])].reverse();
 	if (!events.length) return '<p class="muted">No monitor events yet.</p>';
@@ -509,6 +547,7 @@ function renderDetail() {
 		'<div>Duration: <b>' + fmtDuration(lobby.durationSeconds) + '</b></div>' +
 		'<div>Timer: <b>' + lobby.timer.time + 's ' + (lobby.timer.started ? 'running' : 'paused') + '</b></div>' +
 		'</div>' +
+		renderMatchPlayers(lobby) +
 		'<div class="section"><div class="section-title">Players</div><div class="cards">' + allPlayers.map(renderPlayer).join('') + '</div></div>' +
 		'<div class="section"><div class="section-title">Options</div><div class="cards">' + options.map(([key, value]) => '<div class="option"><b>' + escapeHtml(key) + '</b><br><span class="muted">' + escapeHtml(JSON.stringify(value)) + '</span></div>').join('') + '</div></div>' +
 		'<div class="section"><div class="section-title">Game Logs</div>' + renderEvents(lobby) + '</div>';

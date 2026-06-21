@@ -45,6 +45,40 @@ export type MonitorPlayerSnapshot = {
 	activeBlindKind: string | null
 }
 
+export type MonitorMatchPlayerStatus =
+	| 'in_match'
+	| 'winner'
+	| 'lost'
+	| 'lost_lives'
+	| 'returned_to_lobby'
+	| 'left_lobby'
+	| 'kicked'
+	| 'disconnected'
+	| 'disconnect_expired'
+	| 'remaining_abandoned'
+	| 'abandoned'
+	| 'no_result'
+
+export type MonitorMatchPlayerOutcome = {
+	id: string
+	username: string
+	status: MonitorMatchPlayerStatus
+	label: string
+	reason: string | null
+	at: string
+	isOwner: boolean
+	isDisconnected: boolean
+	team: number | null
+	location: string
+	lives: number
+	score: string
+	handsLeft: number
+	ante: number
+	skips: number
+	furthestBlind: number
+	money: number
+}
+
 export type MonitorMatchOutcome = {
 	type: 'waiting' | 'in_progress' | 'win' | 'no_winner' | 'abandoned' | 'closed'
 	label: string
@@ -70,6 +104,7 @@ export type MonitorLobbySnapshot = {
 	durationSeconds: number | null
 	archiveReason: string | null
 	outcome: MonitorMatchOutcome
+	matchPlayers: MonitorMatchPlayerOutcome[]
 	ownerId: string
 	ownerName: string | null
 	playerCount: number
@@ -100,6 +135,7 @@ type LobbyMonitorState = {
 	matchStartedEventIndex: number | null
 	lastArchivedArchiveKey: string | null
 	lastArchivedSnapshotId: string | null
+	matchPlayers: Map<string, MonitorMatchPlayerOutcome>
 	events: MonitorEvent[]
 }
 
@@ -132,6 +168,86 @@ const parseModHash = (modHash: string) =>
 		.split(';')
 		.map((entry) => entry.trim())
 		.filter(Boolean)
+
+const matchPlayerStatusLabels: Record<MonitorMatchPlayerStatus, string> = {
+	in_match: 'Still in match',
+	winner: 'Won',
+	lost: 'Lost',
+	lost_lives: 'Lost all lives',
+	returned_to_lobby: 'Returned to lobby',
+	left_lobby: 'Left lobby',
+	kicked: 'Kicked',
+	disconnected: 'Disconnected',
+	disconnect_expired: 'Disconnected slot expired',
+	remaining_abandoned: 'Remaining when abandoned',
+	abandoned: 'Abandoned',
+	no_result: 'No result',
+}
+
+type MatchPlayerSource = {
+	id: string
+	username: string
+	isOwner?: boolean
+	isDisconnected?: boolean
+	team?: number | null
+	location?: string
+	lives?: number
+	score?: unknown
+	handsLeft?: number
+	ante?: number
+	skips?: number
+	furthestBlind?: number
+	reportedMoney?: number
+	money?: number
+}
+
+const buildMatchPlayerOutcome = (
+	source: MatchPlayerSource,
+	status: MonitorMatchPlayerStatus,
+	options: {
+		at?: string
+		reason?: string | null
+		isDisconnected?: boolean
+	} = {},
+): MonitorMatchPlayerOutcome => ({
+	id: source.id,
+	username: source.username,
+	status,
+	label: matchPlayerStatusLabels[status],
+	reason: options.reason ?? null,
+	at: options.at ?? nowIso(),
+	isOwner: source.isOwner === true,
+	isDisconnected: options.isDisconnected ?? source.isDisconnected === true,
+	team: source.team ?? null,
+	location: source.location ?? (options.isDisconnected ? 'loc_disconnected' : ''),
+	lives: source.lives ?? 0,
+	score: toScoreString(source.score),
+	handsLeft: source.handsLeft ?? 0,
+	ante: source.ante ?? 0,
+	skips: source.skips ?? 0,
+	furthestBlind: source.furthestBlind ?? 0,
+	money: source.reportedMoney ?? source.money ?? 0,
+})
+
+const setMatchPlayerOutcome = (
+	state: LobbyMonitorState,
+	source: MatchPlayerSource,
+	status: MonitorMatchPlayerStatus,
+	options: {
+		at?: string
+		reason?: string | null
+		isDisconnected?: boolean
+	} = {},
+) => {
+	if (!state.matchId) return
+	state.matchPlayers.set(
+		source.id,
+		buildMatchPlayerOutcome(source, status, options),
+	)
+}
+
+const getLoserStatus = (player: Client): MonitorMatchPlayerStatus =>
+	player.lives <= 0 ? 'lost_lives' : 'lost'
 
 const buildLiveOutcome = (lobby: Lobby): MonitorMatchOutcome =>
 	lobby.isInGame
@@ -227,6 +343,7 @@ const getLobbyState = (lobby: Lobby): LobbyMonitorState => {
 			matchStartedEventIndex: null,
 			lastArchivedArchiveKey: null,
 			lastArchivedSnapshotId: null,
+			matchPlayers: new Map(),
 			events: [],
 		}
 		lobbyStates.set(lobby.code, state)
@@ -283,6 +400,20 @@ export const recordLobbyEvent = (
 	appendEvent(getLobbyState(lobby), event, message, options)
 }
 
+export const recordMatchParticipantOutcome = (
+	lobby: Lobby | null | undefined,
+	player: MatchPlayerSource,
+	status: MonitorMatchPlayerStatus,
+	options: {
+		reason?: string | null
+		isDisconnected?: boolean
+	} = {},
+) => {
+	if (!lobby) return
+	const state = getLobbyState(lobby)
+	setMatchPlayerOutcome(state, player, status, options)
+}
+
 export const recordLobbyCreated = (lobby: Lobby, host: Client) => {
 	const state = getLobbyState(lobby)
 	appendEvent(state, 'lobby.created', `${host.username} created the lobby`, {
@@ -301,6 +432,17 @@ export const recordMatchStarted = (lobby: Lobby, host: Client) => {
 	state.matchId = `${state.lobbyInstanceId}:match:${state.matchNumber}`
 	state.matchStartedAt = at
 	state.matchStartedEventIndex = state.events.length
+	state.matchPlayers = new Map()
+	for (const player of lobby.getPlayers()) {
+		setMatchPlayerOutcome(state, player, 'in_match', { at })
+	}
+	for (const slot of lobby.getDisconnectedSlots()) {
+		setMatchPlayerOutcome(state, slot.savedState, 'disconnected', {
+			at,
+			isDisconnected: true,
+			reason: 'disconnected_at_match_start',
+		})
+	}
 	appendEvent(state, 'match.started', `${host.username} started match ${state.matchNumber}`, {
 		player: host,
 		at,
@@ -418,6 +560,7 @@ export const buildMonitorLobbySnapshot = (
 		durationSeconds,
 		archiveReason: options.archiveReason ?? null,
 		outcome: options.outcome ?? buildLiveOutcome(lobby),
+		matchPlayers: Array.from(state.matchPlayers.values()),
 		ownerId: lobby.ownerId,
 		ownerName: owner?.username ?? null,
 		playerCount: players.length + disconnectedPlayers.length,
@@ -455,9 +598,14 @@ export const archiveLobbySnapshot = (
 			})
 	}
 
+	const isMatchArchive =
+		options.reason === 'match_finished' ||
+		options.reason === 'match_abandoned'
 	const eventName =
 		options.reason === 'match_finished'
 			? 'match.finished'
+			: options.reason === 'match_abandoned'
+			  ? 'match.abandoned'
 			: options.reason === 'lobby_removed'
 			  ? 'lobby.removed'
 			  : 'lobby.archived'
@@ -467,15 +615,13 @@ export const archiveLobbySnapshot = (
 			reason: options.reason,
 			winners: options.winners?.map((player) => player.username),
 			losers: options.losers?.map((player) => player.username),
+			remaining: options.remaining?.map((player) => player.username),
 		},
 	})
 	const snapshot = buildMonitorLobbySnapshot(lobby, {
 		archiveReason: options.reason,
 		endedAt,
-		eventStartIndex:
-			options.reason === 'match_finished'
-				? state.matchStartedEventIndex ?? 0
-				: 0,
+		eventStartIndex: isMatchArchive ? state.matchStartedEventIndex ?? 0 : 0,
 		id: `archive:${nextArchiveId++}:${archiveKey}`,
 		outcome: buildArchiveOutcome(lobby, options),
 		viewKind: 'archived',
@@ -501,6 +647,13 @@ export const recordMatchFinished = (
 		winnerNames.length > 0
 			? `Winners: ${winnerNames.join(', ')}`
 			: 'Match finished with no winner'
+	const state = getLobbyState(lobby)
+	for (const winner of winners) {
+		setMatchPlayerOutcome(state, winner, 'winner')
+	}
+	for (const loser of losers) {
+		setMatchPlayerOutcome(state, loser, getLoserStatus(loser))
+	}
 	return archiveLobbySnapshot(lobby, {
 		reason: 'match_finished',
 		message: loserNames.length > 0 ? `${result}; losers: ${loserNames.join(', ')}` : result,
@@ -517,6 +670,10 @@ export const recordMatchAbandoned = (
 ) => {
 	const remaining = options.remaining ?? []
 	const remainingNames = remaining.map((player) => player.username)
+	const state = getLobbyState(lobby)
+	for (const player of remaining) {
+		setMatchPlayerOutcome(state, player, 'remaining_abandoned')
+	}
 	return archiveLobbySnapshot(lobby, {
 		reason: 'match_abandoned',
 		message:
@@ -528,6 +685,20 @@ export const recordMatchAbandoned = (
 }
 
 export const recordLobbyRemoved = (lobby: Lobby) => {
+	const state = getLobbyState(lobby)
+	if (lobby.isInGame && state.matchStartedAt) {
+		for (const player of lobby.getPlayers()) {
+			setMatchPlayerOutcome(state, player, 'abandoned', {
+				reason: 'lobby_removed',
+			})
+		}
+		for (const slot of lobby.getDisconnectedSlots()) {
+			setMatchPlayerOutcome(state, slot.savedState, 'disconnected', {
+				isDisconnected: true,
+				reason: 'lobby_removed',
+			})
+		}
+	}
 	archiveLobbySnapshot(lobby, {
 		reason: 'lobby_removed',
 		message: 'Lobby closed',
