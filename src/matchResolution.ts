@@ -2,10 +2,15 @@ import type Lobby from './Lobby.js'
 import { tryResolveActiveBlind } from './blindOutcome.js'
 import { hasDisconnectedMatchBlocker } from './blindRules.js'
 import { getLobbyActivePlayers } from './lobbyPlayerState/queries.js'
-import { finalizeMatchResults, resolveTeamsGameOver } from './matchGameOver.js'
+import {
+	finalizeMatchAbandoned,
+	finalizeMatchResults,
+	resolveTeamsGameOver,
+} from './matchGameOver.js'
 
 export const reconcileActiveMatchState = (
 	lobby: Lobby,
+	options: { reason?: 'departure' | 'gameplay' } = {},
 ): 'no_change' | 'blind_resolved' | 'game_over' => {
 	if (!lobby.isInGame) {
 		return 'no_change'
@@ -16,6 +21,11 @@ export const reconcileActiveMatchState = (
 	}
 
 	const remainingPlayers = getLobbyActivePlayers(lobby)
+	if (options.reason === 'departure' && remainingPlayers.length <= 1) {
+		finalizeMatchAbandoned(lobby, remainingPlayers)
+		return 'game_over'
+	}
+
 	if (lobby.lobbyType === 'teams' && resolveTeamsGameOver(lobby)) {
 		return 'game_over'
 	}

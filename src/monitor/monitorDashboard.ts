@@ -411,6 +411,7 @@ function renderOutcome(lobby) {
 	const names = [];
 	if (outcome.winners?.length) names.push('Winners: ' + outcome.winners.join(', '));
 	if (outcome.losers?.length) names.push('Losers: ' + outcome.losers.join(', '));
+	if (outcome.remaining?.length) names.push('Remaining: ' + outcome.remaining.join(', '));
 	const detail = names.length ? names.join(' · ') : (outcome.reason ? 'Reason: ' + outcome.reason : '');
 	return '<div class="outcome ' + escapeHtml(outcome.type || lobby.status) + '">' +
 		'<b>' + escapeHtml(label) + '</b>' +

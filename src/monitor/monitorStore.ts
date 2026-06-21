@@ -51,6 +51,7 @@ export type MonitorMatchOutcome = {
 	reason: string | null
 	winners: string[]
 	losers: string[]
+	remaining: string[]
 }
 
 export type MonitorLobbySnapshot = {
@@ -108,6 +109,7 @@ type ArchiveOptions = {
 	endedAt?: string
 	winners?: Client[]
 	losers?: Client[]
+	remaining?: Client[]
 }
 
 let nextEventId = 1
@@ -139,6 +141,7 @@ const buildLiveOutcome = (lobby: Lobby): MonitorMatchOutcome =>
 				reason: null,
 				winners: [],
 				losers: [],
+				remaining: [],
 		  }
 		: {
 				type: 'waiting',
@@ -146,6 +149,7 @@ const buildLiveOutcome = (lobby: Lobby): MonitorMatchOutcome =>
 				reason: null,
 				winners: [],
 				losers: [],
+				remaining: [],
 		  }
 
 const buildArchiveOutcome = (
@@ -154,6 +158,7 @@ const buildArchiveOutcome = (
 ): MonitorMatchOutcome => {
 	const winners = options.winners?.map((player) => player.username) ?? []
 	const losers = options.losers?.map((player) => player.username) ?? []
+	const remaining = options.remaining?.map((player) => player.username) ?? []
 
 	if (options.reason === 'match_finished') {
 		return winners.length > 0
@@ -163,6 +168,7 @@ const buildArchiveOutcome = (
 					reason: options.reason,
 					winners,
 					losers,
+					remaining,
 			  }
 			: {
 					type: 'no_winner',
@@ -170,7 +176,19 @@ const buildArchiveOutcome = (
 					reason: options.reason,
 					winners,
 					losers,
+					remaining,
 			  }
+	}
+
+	if (options.reason === 'match_abandoned') {
+		return {
+			type: 'abandoned',
+			label: 'Match abandoned',
+			reason: options.reason,
+			winners,
+			losers,
+			remaining,
+		}
 	}
 
 	if (options.reason === 'lobby_removed' && getLobbyState(lobby).matchStartedAt) {
@@ -180,6 +198,7 @@ const buildArchiveOutcome = (
 			reason: options.reason,
 			winners,
 			losers,
+			remaining,
 		}
 	}
 
@@ -189,6 +208,7 @@ const buildArchiveOutcome = (
 		reason: options.reason,
 		winners,
 		losers,
+		remaining,
 	}
 }
 
@@ -486,6 +506,24 @@ export const recordMatchFinished = (
 		message: loserNames.length > 0 ? `${result}; losers: ${loserNames.join(', ')}` : result,
 		winners,
 		losers,
+	})
+}
+
+export const recordMatchAbandoned = (
+	lobby: Lobby,
+	options: {
+		remaining?: Client[]
+	} = {},
+) => {
+	const remaining = options.remaining ?? []
+	const remainingNames = remaining.map((player) => player.username)
+	return archiveLobbySnapshot(lobby, {
+		reason: 'match_abandoned',
+		message:
+			remainingNames.length > 0
+				? `Match abandoned; remaining: ${remainingNames.join(', ')}`
+				: 'Match abandoned with no players remaining',
+		remaining,
 	})
 }
 

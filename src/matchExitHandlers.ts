@@ -27,7 +27,7 @@ export const returnToLobbyAction = (client: Client) => {
 	refreshLobbyNemesisAssignmentsForLobby(lobby)
 	setClientLocation(client, RETURNED_TO_LOBBY_LOCATION)
 
-	const departureResult = reconcileActiveMatchState(lobby)
+	const departureResult = reconcileActiveMatchState(lobby, { reason: 'departure' })
 	if (departureResult !== 'game_over') {
 		broadcastLobbyInfo(lobby)
 	}

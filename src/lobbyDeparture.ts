@@ -56,7 +56,7 @@ const finalizeLobbyDepartureState = (
 	assignNextOwnerIfNeeded(lobby, playerId)
 
 	const departureResult = wasInMatch
-		? reconcileActiveMatchState(lobby)
+		? reconcileActiveMatchState(lobby, { reason: 'departure' })
 		: 'no_change'
 
 	if (departureResult !== 'game_over') {

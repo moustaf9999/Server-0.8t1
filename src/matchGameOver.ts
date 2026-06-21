@@ -10,7 +10,10 @@ import {
 	getLobbyTeamLives,
 } from './lobbyPlayerState/queries.js'
 import { isDuelsLobbyType } from './lobbyTypes.js'
-import { recordMatchFinished } from './monitor/monitorStore.js'
+import {
+	recordMatchAbandoned,
+	recordMatchFinished,
+} from './monitor/monitorStore.js'
 import { clearPlayerMatchParticipation } from './playerState.js'
 import { sendEndgameServerAction } from './protocol/v2/index.js'
 
@@ -61,6 +64,26 @@ export const finalizeMatchResults = (
 
 	for (const loser of losers) {
 		sendEndgameServerAction(loser, { action: 'loseGame' })
+	}
+
+	broadcastLobbyInfo(lobby)
+}
+
+export const finalizeMatchAbandoned = (
+	lobby: Lobby,
+	remainingPlayers: ReturnType<typeof getLobbyActivePlayers>,
+) => {
+	clearCoopSaveVoteForLobby(lobby)
+	clearDuelMatchState(lobby)
+	resetLobbyAnteTimer(lobby)
+	lobby.isInGame = false
+
+	recordMatchAbandoned(lobby, { remaining: remainingPlayers })
+
+	clearPlayersMatchParticipation(remainingPlayers)
+	refreshLobbyNemesisAssignmentsForLobby(lobby)
+	for (const player of remainingPlayers) {
+		sendEndgameServerAction(player, { action: 'aloneGame' })
 	}
 
 	broadcastLobbyInfo(lobby)
