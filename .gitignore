@@ -1,0 +1,31 @@
+# Dependencies
+node_modules/
+
+# Generated build/package output
+dist/
+releases/
+*.tgz
+
+# Local-only validation files
+tests/
+coverage/
+
+# Local-only maintenance scripts
+scripts/
+
+# Local editor/system files
+.vscode/
+.vs/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Local environment, secrets, and runtime output
+.env
+.env.*
+!.env.example
+logs/
+*.log
+
+# Local optional admin keys
+*.pem
