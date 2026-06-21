@@ -46,15 +46,20 @@ export type MonitorPlayerSnapshot = {
 }
 
 export type MonitorLobbySnapshot = {
+	id: string
+	viewKind: 'live' | 'archived'
 	code: string
 	status: 'waiting' | 'in_game'
 	gameMode: string
 	lobbyType: string
 	createdAt: string
 	updatedAt: string
+	matchId: string | null
+	matchNumber: number
 	matchStartedAt: string | null
 	endedAt: string | null
 	durationSeconds: number | null
+	archiveReason: string | null
 	ownerId: string
 	ownerName: string | null
 	playerCount: number
@@ -75,12 +80,16 @@ export type MonitorLobbySnapshot = {
 }
 
 type LobbyMonitorState = {
+	lobbyInstanceId: number
 	code: string
 	createdAt: string
 	updatedAt: string
+	matchId: string | null
+	matchNumber: number
 	matchStartedAt: string | null
 	matchStartedEventIndex: number | null
-	lastArchivedMatchStartedAt: string | null
+	lastArchivedArchiveKey: string | null
+	lastArchivedSnapshotId: string | null
 	events: MonitorEvent[]
 }
 
@@ -93,6 +102,8 @@ type ArchiveOptions = {
 }
 
 let nextEventId = 1
+let nextLobbyInstanceId = 1
+let nextArchiveId = 1
 const lobbyStates = new Map<string, LobbyMonitorState>()
 const archivedLobbies: MonitorLobbySnapshot[] = []
 
@@ -116,12 +127,16 @@ const getLobbyState = (lobby: Lobby): LobbyMonitorState => {
 	if (!state) {
 		const createdAt = nowIso()
 		state = {
+			lobbyInstanceId: nextLobbyInstanceId++,
 			code: lobby.code,
 			createdAt,
 			updatedAt: createdAt,
+			matchId: null,
+			matchNumber: 0,
 			matchStartedAt: null,
 			matchStartedEventIndex: null,
-			lastArchivedMatchStartedAt: null,
+			lastArchivedArchiveKey: null,
+			lastArchivedSnapshotId: null,
 			events: [],
 		}
 		lobbyStates.set(lobby.code, state)
@@ -192,12 +207,16 @@ export const recordLobbyCreated = (lobby: Lobby, host: Client) => {
 export const recordMatchStarted = (lobby: Lobby, host: Client) => {
 	const state = getLobbyState(lobby)
 	const at = nowIso()
+	state.matchNumber += 1
+	state.matchId = `${state.lobbyInstanceId}:match:${state.matchNumber}`
 	state.matchStartedAt = at
 	state.matchStartedEventIndex = state.events.length
-	appendEvent(state, 'match.started', `${host.username} started the match`, {
+	appendEvent(state, 'match.started', `${host.username} started match ${state.matchNumber}`, {
 		player: host,
 		at,
 		details: {
+			matchId: state.matchId,
+			matchNumber: state.matchNumber,
 			playerCount: lobby.getPlayerCount(),
 			gameMode: lobby.gameMode,
 			lobbyType: lobby.lobbyType,
@@ -269,7 +288,13 @@ const buildDisconnectedPlayerSnapshot = (
 
 export const buildMonitorLobbySnapshot = (
 	lobby: Lobby,
-	options: { endedAt?: string; eventStartIndex?: number } = {},
+	options: {
+		archiveReason?: string | null
+		endedAt?: string
+		eventStartIndex?: number
+		id?: string
+		viewKind?: 'live' | 'archived'
+	} = {},
 ): MonitorLobbySnapshot => {
 	const state = getLobbyState(lobby)
 	const players = lobby.getPlayers().map((player) => buildPlayerSnapshot(player))
@@ -285,15 +310,22 @@ export const buildMonitorLobbySnapshot = (
 			: null
 
 	return {
+		id:
+			options.id ??
+			`${options.viewKind ?? 'live'}:${state.lobbyInstanceId}:${lobby.code}`,
+		viewKind: options.viewKind ?? 'live',
 		code: lobby.code,
 		status: lobby.isInGame ? 'in_game' : 'waiting',
 		gameMode: lobby.gameMode,
 		lobbyType: lobby.lobbyType,
 		createdAt: state.createdAt,
 		updatedAt: state.updatedAt,
+		matchId: state.matchId,
+		matchNumber: state.matchNumber,
 		matchStartedAt: startedAt,
 		endedAt,
 		durationSeconds,
+		archiveReason: options.archiveReason ?? null,
 		ownerId: lobby.ownerId,
 		ownerName: owner?.username ?? null,
 		playerCount: players.length + disconnectedPlayers.length,
@@ -320,9 +352,11 @@ export const archiveLobbySnapshot = (
 ): MonitorLobbySnapshot => {
 	const state = getLobbyState(lobby)
 	const endedAt = options.endedAt ?? nowIso()
-	const archiveKey = state.matchStartedAt ?? state.createdAt
-	if (state.lastArchivedMatchStartedAt === archiveKey) {
-		return archivedLobbies.find((entry) => entry.code === lobby.code) ??
+	const archiveKey = state.matchId ?? `${state.lobbyInstanceId}:lobby:${state.createdAt}`
+	if (state.lastArchivedArchiveKey === archiveKey) {
+		return archivedLobbies.find(
+			(entry) => entry.id === state.lastArchivedSnapshotId,
+		) ??
 			buildMonitorLobbySnapshot(lobby, { endedAt })
 	}
 
@@ -341,14 +375,18 @@ export const archiveLobbySnapshot = (
 		},
 	})
 	const snapshot = buildMonitorLobbySnapshot(lobby, {
+		archiveReason: options.reason,
 		endedAt,
 		eventStartIndex:
 			options.reason === 'match_finished'
 				? state.matchStartedEventIndex ?? 0
 				: 0,
+		id: `archive:${nextArchiveId++}:${archiveKey}`,
+		viewKind: 'archived',
 	})
 	pushArchive(snapshot)
-	state.lastArchivedMatchStartedAt = archiveKey
+	state.lastArchivedArchiveKey = archiveKey
+	state.lastArchivedSnapshotId = snapshot.id
 	return snapshot
 }
 
@@ -402,6 +440,8 @@ export const getMonitorSnapshot = (lobbies: Iterable<Lobby>) => {
 
 export const resetMonitorStoreForTests = () => {
 	nextEventId = 1
+	nextLobbyInstanceId = 1
+	nextArchiveId = 1
 	lobbyStates.clear()
 	archivedLobbies.length = 0
 }

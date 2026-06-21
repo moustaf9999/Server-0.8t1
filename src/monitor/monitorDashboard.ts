@@ -325,7 +325,7 @@ pre {
 const state = {
 	token: localStorage.getItem('mp_monitor_token') || '',
 	tab: 'live',
-	selectedCode: '',
+	selectedId: '',
 	data: null,
 };
 const $ = (id) => document.getElementById(id);
@@ -368,6 +368,20 @@ function getVisibleLobbies() {
 	return state.tab === 'live' ? (state.data?.live || []) : (state.data?.archived || []);
 }
 
+function getItemId(lobby) {
+	return lobby.id || (state.tab + ':' + lobby.code + ':' + (lobby.matchStartedAt || lobby.createdAt || 'unknown'));
+}
+
+function getItemTitle(lobby) {
+	if (state.tab === 'archived') {
+		const label = lobby.archiveReason === 'match_finished'
+			? 'Match ' + (lobby.matchNumber || '?')
+			: 'Lobby closed';
+		return escapeHtml(lobby.code) + ' <span class="pill purple">' + escapeHtml(label) + '</span>';
+	}
+	return escapeHtml(lobby.code);
+}
+
 function renderLobbyList() {
 	const lobbies = getVisibleLobbies();
 	if (!lobbies.length) {
@@ -375,21 +389,22 @@ function renderLobbyList() {
 		$('detail').innerHTML = '<p class="muted">Nothing selected.</p>';
 		return;
 	}
-	if (!lobbies.some(lobby => lobby.code === state.selectedCode)) {
-		state.selectedCode = lobbies[0].code;
+	if (!lobbies.some(lobby => getItemId(lobby) === state.selectedId)) {
+		state.selectedId = getItemId(lobbies[0]);
 	}
 	$('lobbyList').innerHTML = lobbies.map(lobby => {
-		const active = lobby.code === state.selectedCode ? ' active' : '';
-		return '<button class="lobby ' + lobby.status + active + '" data-code="' + escapeHtml(lobby.code) + '">' +
-			'<div class="row"><span class="code">' + escapeHtml(lobby.code) + '</span>' + statusPill(lobby) + '</div>' +
+		const itemId = getItemId(lobby);
+		const active = itemId === state.selectedId ? ' active' : '';
+		return '<button class="lobby ' + lobby.status + active + '" data-id="' + escapeHtml(itemId) + '">' +
+			'<div class="row"><span class="code">' + getItemTitle(lobby) + '</span>' + statusPill(lobby) + '</div>' +
 			'<div class="muted">' + escapeHtml(lobby.gameMode) + ' / ' + escapeHtml(lobby.lobbyType) + '</div>' +
 			'<div class="row"><span>' + lobby.playerCount + '/' + lobby.maxPlayers + ' players</span><span>' + escapeHtml(lobby.ownerName || 'No host') + '</span></div>' +
-			'<div class="muted">' + (state.tab === 'archived' ? 'Ended ' + fmtTime(lobby.endedAt) : 'Updated ' + fmtTime(lobby.updatedAt)) + '</div>' +
+			'<div class="muted">' + (state.tab === 'archived' ? 'Started ' + fmtTime(lobby.matchStartedAt) + ' · Ended ' + fmtTime(lobby.endedAt) : 'Updated ' + fmtTime(lobby.updatedAt)) + '</div>' +
 			'</button>';
 	}).join('');
-	for (const button of document.querySelectorAll('.lobby[data-code]')) {
+	for (const button of document.querySelectorAll('.lobby[data-id]')) {
 		button.addEventListener('click', () => {
-			state.selectedCode = button.getAttribute('data-code');
+			state.selectedId = button.getAttribute('data-id');
 			render();
 		});
 	}
@@ -434,7 +449,7 @@ function renderEvents(lobby) {
 }
 
 function renderDetail() {
-	const lobby = getVisibleLobbies().find(item => item.code === state.selectedCode);
+	const lobby = getVisibleLobbies().find(item => getItemId(item) === state.selectedId);
 	if (!lobby) {
 		$('detail').innerHTML = '<p class="muted">Nothing selected.</p>';
 		return;
@@ -442,10 +457,12 @@ function renderDetail() {
 	const allPlayers = [...(lobby.players || []), ...(lobby.disconnectedPlayers || [])];
 	const options = Object.entries(lobby.options || {}).sort(([a], [b]) => a.localeCompare(b));
 	$('detail').innerHTML =
-		'<div class="section-title"><span class="code">' + escapeHtml(lobby.code) + '</span>' + statusPill(lobby) + '</div>' +
+		'<div class="section-title"><span class="code">' + getItemTitle(lobby) + '</span>' + statusPill(lobby) + '</div>' +
 		'<div class="kv">' +
 		'<div>Mode: <b>' + escapeHtml(lobby.gameMode) + '</b></div>' +
 		'<div>Lobby type: <b>' + escapeHtml(lobby.lobbyType) + '</b></div>' +
+		'<div>Match: <b>' + escapeHtml(lobby.matchNumber ? '#' + lobby.matchNumber : 'none') + '</b></div>' +
+		'<div>Match ID: <b>' + escapeHtml(lobby.matchId || 'none') + '</b></div>' +
 		'<div>Host: <b>' + escapeHtml(lobby.ownerName || 'No host') + '</b></div>' +
 		'<div>Created: <b>' + fmtTime(lobby.createdAt) + '</b></div>' +
 		'<div>Started: <b>' + fmtTime(lobby.matchStartedAt) + '</b></div>' +
@@ -505,7 +522,7 @@ $('exportBtn').addEventListener('click', () => {
 document.querySelectorAll('.tab').forEach(tab => {
 	tab.addEventListener('click', () => {
 		state.tab = tab.getAttribute('data-tab');
-		state.selectedCode = '';
+		state.selectedId = '';
 		render();
 	});
 });
