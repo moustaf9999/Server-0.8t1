@@ -265,6 +265,29 @@ h1 {
 }
 .event.warn { border-left-color: var(--orange); }
 .event.error { border-left-color: var(--red); }
+.outcome {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	margin: 10px 0 12px;
+	padding: 10px 12px;
+	border-radius: 6px;
+	background: rgba(12,148,232,.18);
+	border: 1px solid rgba(12,148,232,.42);
+}
+.outcome.win {
+	background: rgba(55,214,138,.16);
+	border-color: rgba(55,214,138,.42);
+}
+.outcome.abandoned, .outcome.closed {
+	background: rgba(255,155,0,.16);
+	border-color: rgba(255,155,0,.42);
+}
+.outcome.no_winner {
+	background: rgba(255,74,66,.14);
+	border-color: rgba(255,74,66,.38);
+}
 pre {
 	margin: 0;
 	white-space: pre-wrap;
@@ -382,6 +405,19 @@ function getItemTitle(lobby) {
 	return escapeHtml(lobby.code);
 }
 
+function renderOutcome(lobby) {
+	const outcome = lobby.outcome || {};
+	const label = outcome.label || (lobby.status === 'in_game' ? 'In progress' : 'Waiting in lobby');
+	const names = [];
+	if (outcome.winners?.length) names.push('Winners: ' + outcome.winners.join(', '));
+	if (outcome.losers?.length) names.push('Losers: ' + outcome.losers.join(', '));
+	const detail = names.length ? names.join(' · ') : (outcome.reason ? 'Reason: ' + outcome.reason : '');
+	return '<div class="outcome ' + escapeHtml(outcome.type || lobby.status) + '">' +
+		'<b>' + escapeHtml(label) + '</b>' +
+		(detail ? '<span class="muted">' + escapeHtml(detail) + '</span>' : '') +
+		'</div>';
+}
+
 function renderLobbyList() {
 	const lobbies = getVisibleLobbies();
 	if (!lobbies.length) {
@@ -398,6 +434,7 @@ function renderLobbyList() {
 		return '<button class="lobby ' + lobby.status + active + '" data-id="' + escapeHtml(itemId) + '">' +
 			'<div class="row"><span class="code">' + getItemTitle(lobby) + '</span>' + statusPill(lobby) + '</div>' +
 			'<div class="muted">' + escapeHtml(lobby.gameMode) + ' / ' + escapeHtml(lobby.lobbyType) + '</div>' +
+			(state.tab === 'archived' && lobby.outcome ? '<div>' + escapeHtml(lobby.outcome.label) + '</div>' : '') +
 			'<div class="row"><span>' + lobby.playerCount + '/' + lobby.maxPlayers + ' players</span><span>' + escapeHtml(lobby.ownerName || 'No host') + '</span></div>' +
 			'<div class="muted">' + (state.tab === 'archived' ? 'Started ' + fmtTime(lobby.matchStartedAt) + ' · Ended ' + fmtTime(lobby.endedAt) : 'Updated ' + fmtTime(lobby.updatedAt)) + '</div>' +
 			'</button>';
@@ -458,6 +495,7 @@ function renderDetail() {
 	const options = Object.entries(lobby.options || {}).sort(([a], [b]) => a.localeCompare(b));
 	$('detail').innerHTML =
 		'<div class="section-title"><span class="code">' + getItemTitle(lobby) + '</span>' + statusPill(lobby) + '</div>' +
+		renderOutcome(lobby) +
 		'<div class="kv">' +
 		'<div>Mode: <b>' + escapeHtml(lobby.gameMode) + '</b></div>' +
 		'<div>Lobby type: <b>' + escapeHtml(lobby.lobbyType) + '</b></div>' +

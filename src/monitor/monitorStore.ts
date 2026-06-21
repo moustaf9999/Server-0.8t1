@@ -45,6 +45,14 @@ export type MonitorPlayerSnapshot = {
 	activeBlindKind: string | null
 }
 
+export type MonitorMatchOutcome = {
+	type: 'waiting' | 'in_progress' | 'win' | 'no_winner' | 'abandoned' | 'closed'
+	label: string
+	reason: string | null
+	winners: string[]
+	losers: string[]
+}
+
 export type MonitorLobbySnapshot = {
 	id: string
 	viewKind: 'live' | 'archived'
@@ -60,6 +68,7 @@ export type MonitorLobbySnapshot = {
 	endedAt: string | null
 	durationSeconds: number | null
 	archiveReason: string | null
+	outcome: MonitorMatchOutcome
 	ownerId: string
 	ownerName: string | null
 	playerCount: number
@@ -121,6 +130,67 @@ const parseModHash = (modHash: string) =>
 		.split(';')
 		.map((entry) => entry.trim())
 		.filter(Boolean)
+
+const buildLiveOutcome = (lobby: Lobby): MonitorMatchOutcome =>
+	lobby.isInGame
+		? {
+				type: 'in_progress',
+				label: 'In progress',
+				reason: null,
+				winners: [],
+				losers: [],
+		  }
+		: {
+				type: 'waiting',
+				label: 'Waiting in lobby',
+				reason: null,
+				winners: [],
+				losers: [],
+		  }
+
+const buildArchiveOutcome = (
+	lobby: Lobby,
+	options: ArchiveOptions,
+): MonitorMatchOutcome => {
+	const winners = options.winners?.map((player) => player.username) ?? []
+	const losers = options.losers?.map((player) => player.username) ?? []
+
+	if (options.reason === 'match_finished') {
+		return winners.length > 0
+			? {
+					type: 'win',
+					label: `${winners.length === 1 ? 'Winner' : 'Winners'}: ${winners.join(', ')}`,
+					reason: options.reason,
+					winners,
+					losers,
+			  }
+			: {
+					type: 'no_winner',
+					label: 'Finished with no winner',
+					reason: options.reason,
+					winners,
+					losers,
+			  }
+	}
+
+	if (options.reason === 'lobby_removed' && getLobbyState(lobby).matchStartedAt) {
+		return {
+			type: 'abandoned',
+			label: 'Abandoned before a result',
+			reason: options.reason,
+			winners,
+			losers,
+		}
+	}
+
+	return {
+		type: 'closed',
+		label: 'Lobby closed',
+		reason: options.reason,
+		winners,
+		losers,
+	}
+}
 
 const getLobbyState = (lobby: Lobby): LobbyMonitorState => {
 	let state = lobbyStates.get(lobby.code)
@@ -293,6 +363,7 @@ export const buildMonitorLobbySnapshot = (
 		endedAt?: string
 		eventStartIndex?: number
 		id?: string
+		outcome?: MonitorMatchOutcome
 		viewKind?: 'live' | 'archived'
 	} = {},
 ): MonitorLobbySnapshot => {
@@ -326,6 +397,7 @@ export const buildMonitorLobbySnapshot = (
 		endedAt,
 		durationSeconds,
 		archiveReason: options.archiveReason ?? null,
+		outcome: options.outcome ?? buildLiveOutcome(lobby),
 		ownerId: lobby.ownerId,
 		ownerName: owner?.username ?? null,
 		playerCount: players.length + disconnectedPlayers.length,
@@ -357,7 +429,10 @@ export const archiveLobbySnapshot = (
 		return archivedLobbies.find(
 			(entry) => entry.id === state.lastArchivedSnapshotId,
 		) ??
-			buildMonitorLobbySnapshot(lobby, { endedAt })
+			buildMonitorLobbySnapshot(lobby, {
+				endedAt,
+				outcome: buildArchiveOutcome(lobby, options),
+			})
 	}
 
 	const eventName =
@@ -382,6 +457,7 @@ export const archiveLobbySnapshot = (
 				? state.matchStartedEventIndex ?? 0
 				: 0,
 		id: `archive:${nextArchiveId++}:${archiveKey}`,
+		outcome: buildArchiveOutcome(lobby, options),
 		viewKind: 'archived',
 	})
 	pushArchive(snapshot)
