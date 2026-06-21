@@ -236,6 +236,19 @@ h1 {
 	padding: 10px;
 }
 .player.disconnected { opacity: .7; border: 1px dashed rgba(255,255,255,.25); }
+.match-player-head {
+	display: grid;
+	gap: 6px;
+	align-items: start;
+}
+.match-player-head b {
+	overflow-wrap: anywhere;
+}
+.match-player-head .pill {
+	justify-self: start;
+	max-width: 100%;
+	white-space: normal;
+}
 .kv {
 	display: grid;
 	grid-template-columns: repeat(auto-fit, minmax(135px, 1fr));
@@ -485,7 +498,7 @@ function statusPillClass(status) {
 function renderMatchPlayer(player) {
 	const label = player.label || player.status || 'Unknown';
 	return '<div class="player ' + (player.isDisconnected ? 'disconnected' : '') + '">' +
-		'<div class="player-head"><b>' + escapeHtml(player.username) + '</b><span>' +
+		'<div class="match-player-head"><b>' + escapeHtml(player.username) + '</b><span>' +
 		'<span class="pill ' + statusPillClass(player.status) + '">' + escapeHtml(label) + '</span>' +
 		'</span></div>' +
 		'<div class="kv">' +
