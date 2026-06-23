@@ -75,6 +75,27 @@ const broadcastCoopBossBlind = (
 	}
 }
 
+const sendExistingBossBlind = (
+	client: Client,
+	existing: {
+		ante: number
+		revision: number
+		sourcePlayerId: string
+		bossKey: string
+		isReroll: boolean
+	},
+) => {
+	sendMatchServerAction(client, {
+		action: 'coopBossBlind',
+		phase: 'result',
+		ante: existing.ante,
+		revision: existing.revision,
+		sourcePlayerId: existing.sourcePlayerId,
+		bossKey: existing.bossKey,
+		isReroll: existing.isReroll,
+	})
+}
+
 const handleBossRerollStart = (
 	client: Client,
 	ante: number,
@@ -139,10 +160,10 @@ const handleBossResult = (
 		return
 	}
 
-	const isDuplicateReport =
-		!isPendingResult && existing?.bossKey === bossKey
-
-	if (isDuplicateReport) {
+	if (!isPendingResult && existing) {
+		if (existing.bossKey !== bossKey) {
+			sendExistingBossBlind(client, existing)
+		}
 		return
 	}
 
@@ -150,7 +171,14 @@ const handleBossResult = (
 		? pending.revision
 		: lobby.teamState.nextBossBlindRevision(groupId)
 
-	lobby.teamState.setBossBlind(groupId, ante, bossKey, revision)
+	lobby.teamState.setBossBlind(
+		groupId,
+		ante,
+		bossKey,
+		revision,
+		client.id,
+		isPendingResult,
+	)
 	if (isPendingResult) {
 		lobby.teamState.clearPendingBossReroll(groupId)
 	}

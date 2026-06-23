@@ -4,6 +4,8 @@ type SharedBossBlindState = {
 	ante: number
 	bossKey: string
 	revision: number
+	sourcePlayerId: string
+	isReroll: boolean
 }
 
 type PendingBossRerollState = {
@@ -125,6 +127,8 @@ export class LobbyTeamState {
 		ante: number,
 		bossKey: string,
 		revision: number,
+		sourcePlayerId: string,
+		isReroll: boolean,
 	) => {
 		let groupBossBlinds = this.bossBlinds.get(groupId)
 		if (!groupBossBlinds) {
@@ -132,7 +136,7 @@ export class LobbyTeamState {
 			this.bossBlinds.set(groupId, groupBossBlinds)
 		}
 
-		const state = { ante, bossKey, revision }
+		const state = { ante, bossKey, revision, sourcePlayerId, isReroll }
 		groupBossBlinds.set(ante, state)
 		this.bossBlindRevisions.set(
 			groupId,
