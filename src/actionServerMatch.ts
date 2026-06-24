@@ -66,6 +66,10 @@ export type ActionEndPvP = {
 	lost: boolean
 	pvpTimerLost?: boolean
 }
+export type ActionEndCoopBlind = {
+	action: 'endCoopBlind'
+	lost: boolean
+}
 export type ActionEnemyLocation = {
 	action: 'enemyLocation'
 	playerId: string
@@ -104,6 +108,7 @@ export type ActionServerMatch =
 	| ActionPlayerInfo
 	| ActionEnemyInfo
 	| ActionEndPvP
+	| ActionEndCoopBlind
 	| ActionEnemyLocation
 	| ActionSpeedrun
 	| ActionStartAnteTimer

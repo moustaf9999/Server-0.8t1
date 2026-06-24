@@ -25,7 +25,7 @@ import { traceRuntimeEvent } from './runtimeTrace.js'
 import { reconcileActiveMatchState } from './matchResolution.js'
 import { handleTeamCoopBlindRoundFailure } from './teamBlindFlowHandlers.js'
 import { sendMatchServerAction } from './protocol/v2/index.js'
-import { isHeadToHeadLobbyType } from './lobbyTypes.js'
+import { isCoopLobbyType, isHeadToHeadLobbyType } from './lobbyTypes.js'
 
 type ActiveRoundFailureLobby = NonNullable<Client['lobby']>
 
@@ -249,6 +249,14 @@ export const failRoundAction = (client: Client) => {
 	}
 
 	if (handleTeamCoopBlindRoundFailure(client)) {
+		return
+	}
+	if (isCoopLobbyType(lobby.lobbyType)) {
+		traceRuntimeEvent('coop.fail_round_ignored', {
+			lobbyCode: lobby.code,
+			playerId: client.id,
+			reason: 'not_active_coop_blind',
+		})
 		return
 	}
 

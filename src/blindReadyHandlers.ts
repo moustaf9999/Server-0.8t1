@@ -138,6 +138,9 @@ const tryStartPendingPvpBlindIfReady = (
 	if (!lobby || hasDisconnectedMatchBlocker(lobby)) {
 		return false
 	}
+	if (isCoopLobbyType(lobby.lobbyType)) {
+		return false
+	}
 
 	const activePlayers = getLobbyActivePlayers(lobby)
 	if (activePlayers.length === 0) {
@@ -249,6 +252,10 @@ export const readyBlindAction = (
 		!isBlindKindValidForRow(normalizedBlindRow, normalizedBlindKind)
 	) {
 		sendSystemError(client, 'Invalid blind ready target.')
+		return
+	}
+	if (isCoopLobbyType(lobby.lobbyType) && normalizedBlindKind === 'pvp') {
+		sendSystemError(client, 'PvP blinds are not available in co-op.')
 		return
 	}
 

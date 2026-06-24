@@ -7,6 +7,7 @@ import {
 	finalizeMatchResults,
 	resolveTeamsGameOver,
 } from './matchGameOver.js'
+import { isCoopLobbyType } from './lobbyTypes.js'
 
 export const reconcileActiveMatchState = (
 	lobby: Lobby,
@@ -28,6 +29,10 @@ export const reconcileActiveMatchState = (
 
 	if (lobby.lobbyType === 'teams' && resolveTeamsGameOver(lobby)) {
 		return 'game_over'
+	}
+
+	if (isCoopLobbyType(lobby.lobbyType) && remainingPlayers.length <= 1) {
+		return 'no_change'
 	}
 
 	if (remainingPlayers.length <= 1) {

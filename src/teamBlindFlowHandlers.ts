@@ -31,7 +31,7 @@ import {
 const endTeamCoopBlind = (players: Client[], lost: boolean) =>
 	players.forEach((player) => {
 		clearPlayerStartedBlindRuntimeState(player)
-		sendMatchServerAction(player, { action: 'endPvP', lost })
+		sendMatchServerAction(player, { action: 'endCoopBlind', lost })
 	})
 
 const getCoopBlindGroup = (client: Client) => {

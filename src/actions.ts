@@ -31,6 +31,7 @@ export type {
 	ActionEnemyInfo,
 	ActionEnemyLocation,
 	ActionEnemyReconnected,
+	ActionEndCoopBlind,
 	ActionEndPvP,
 	ActionError,
 	ActionGetEndGameJokersRequest,

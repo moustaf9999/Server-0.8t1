@@ -11,6 +11,7 @@ export const MATCH_SERVER_ROUTES = [
 	'startGame',
 	'startBlind',
 	['endPvP', 'endPvp'],
+	'endCoopBlind',
 	'enemyInfo',
 	'playerInfo',
 	'enemyLocation',

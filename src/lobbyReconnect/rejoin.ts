@@ -66,7 +66,7 @@ export const sendResolvedTeamBlindEndOnRejoin = (
 	}
 
 	sendMatchServerAction(client, {
-		action: 'endPvP',
+		action: 'endCoopBlind',
 		lost: resolvedTeamBlindState.lost,
 	})
 }

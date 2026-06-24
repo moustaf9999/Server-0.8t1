@@ -9,7 +9,7 @@ import {
 	getLobbyActiveTeamPlayers,
 	getLobbyTeamLives,
 } from './lobbyPlayerState/queries.js'
-import { isDuelsLobbyType } from './lobbyTypes.js'
+import { isCoopLobbyType, isDuelsLobbyType } from './lobbyTypes.js'
 import {
 	recordMatchAbandoned,
 	recordMatchFinished,
@@ -170,6 +170,10 @@ export const resolveSoloEliminations = (
 	lobby: Lobby,
 	options: { deferDuelPairing?: boolean } = {},
 ): boolean => {
+	if (isCoopLobbyType(lobby.lobbyType)) {
+		return false
+	}
+
 	const players = getLobbyActivePlayers(lobby)
 	const alivePlayers = players.filter((player) => player.lives > 0)
 

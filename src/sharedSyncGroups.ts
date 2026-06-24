@@ -43,7 +43,7 @@ export const isSharedSyncOptionEnabled = (
 		return true
 	}
 
-	return isTeamLobbyType(lobby.lobbyType)
+	return isTeamLobbyType(lobby.lobbyType) || isCoopLobbyType(lobby.lobbyType)
 }
 
 export const getClientSharedSyncGroupId = (client: SharedSyncGroupMember) =>

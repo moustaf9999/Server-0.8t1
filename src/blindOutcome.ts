@@ -5,7 +5,7 @@ import { loseClientLife } from './clientState.js'
 import { startDuelRound } from './lobbyDuelCoordinator.js'
 import { loseLobbyTeamLife } from './lobbyPlayerState/lives.js'
 import { getLobbyActivePlayers } from './lobbyPlayerState/queries.js'
-import { isDuelsLobbyType } from './lobbyTypes.js'
+import { isCoopLobbyType, isDuelsLobbyType } from './lobbyTypes.js'
 import { resolveSoloEliminations, resolveTeamsGameOver } from './matchGameOver.js'
 import {
 	clearPlayerActiveBlindState,
@@ -31,6 +31,10 @@ const loseTeamPvpLives = (
 }
 
 export const tryResolveActiveBlind = (lobby: Lobby) => {
+	if (isCoopLobbyType(lobby.lobbyType)) {
+		return false
+	}
+
 	const players = getLobbyActivePlayers(lobby)
 	if (players.length === 0) {
 		return false
