@@ -5,18 +5,22 @@ import {
 } from '../lobbyBroadcasts.js'
 import { refreshLobbyNemesisAssignmentsForLobby } from '../lobbyNemesis.js'
 import { getLobbyTeamLives } from '../lobbyPlayerState/queries.js'
+import { isCoopLobbyType } from '../lobbyTypes.js'
 import { leaveLobbyClient } from '../lobbyDeparture.js'
 import { removeLobbyByCode } from '../lobbyRegistry.js'
 import { buildJoinedLobbyAction } from '../lobbySnapshots/actions.js'
 import {
 	clearPendingBlindReadyState,
-	clearPlayerCoopBlindState,
-	clearPlayerFirstReadyState,
+	clearPlayerStartedBlindRuntimeState,
 } from '../playerState.js'
 import {
 	sendLobbyServerAction,
 	sendMatchServerAction,
 } from '../protocol/v2/index.js'
+import {
+	getClientSharedSyncGroupId,
+	lobbyUsesSharedSyncGroup,
+} from '../sharedSyncGroups.js'
 import {
 	buildSavedGameState,
 	restoreSavedGameState,
@@ -34,26 +38,32 @@ export const applyResolvedTeamBlindStateOnRejoin = (
 	savedState: SavedGameState,
 ): ResolvedTeamBlindRejoinState | null => {
 	if (
-		lobby.lobbyType !== 'teams' ||
+		!lobbyUsesSharedSyncGroup(lobby) ||
 		!savedState.isInMatch ||
 		!savedState.coopBlindActive
 	) {
 		return null
 	}
 
-	const teamId = client.team ?? 1
-	if (!lobby.teamState.hasResolvedCoopTeam(teamId)) {
+	const groupId = getClientSharedSyncGroupId(client)
+	if (!lobby.teamState.hasResolvedCoopTeam(groupId)) {
 		return null
 	}
 
-	const currentTeamLives = getLobbyTeamLives(lobby, teamId)
+	const isGlobalCoop = isCoopLobbyType(lobby.lobbyType)
+	if (isGlobalCoop && !lobby.isInGame) {
+		return null
+	}
+
+	const currentTeamLives = isGlobalCoop
+		? savedState.lives
+		: getLobbyTeamLives(lobby, groupId)
 	client.lives = currentTeamLives
-	clearPlayerFirstReadyState(client)
-	clearPlayerCoopBlindState(client)
+	clearPlayerStartedBlindRuntimeState(client)
 	clearPendingBlindReadyState(client)
 
 	return {
-		lost: currentTeamLives < savedState.lives,
+		lost: !isGlobalCoop && currentTeamLives < savedState.lives,
 	}
 }
 
