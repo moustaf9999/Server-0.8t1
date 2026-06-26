@@ -77,24 +77,18 @@ const normalizeAggregateBlindTarget = (blindTarget: InsaneInt) => {
 	return normalized
 }
 
-const aggregateBlindTargets = (
-	targets: InsaneInt[],
-	isGlobalCoop: boolean,
-) => {
+const aggregateBlindTargets = (targets: InsaneInt[]) => {
 	if (targets.length === 0) {
 		return null
 	}
 
 	const summedTargets = sumScoreValues(targets)
-	const aggregateTarget = isGlobalCoop
-		? summedTargets.div(new InsaneInt(0, targets.length, 0))
-		: summedTargets
+	const aggregateTarget = summedTargets.div(new InsaneInt(0, targets.length, 0))
 	return normalizeAggregateBlindTarget(aggregateTarget)
 }
 
 const aggregateReadyBlindTargets = (
 	players: Client[],
-	isGlobalCoop: boolean,
 	fallbackBlindTarget: unknown,
 ) => {
 	const targets = players
@@ -102,7 +96,7 @@ const aggregateReadyBlindTargets = (
 		.filter((target): target is InsaneInt => target != null)
 
 	if (targets.length === players.length && targets.length > 0) {
-		return aggregateBlindTargets(targets, isGlobalCoop)
+		return aggregateBlindTargets(targets)
 	}
 
 	const fallbackTarget = parseReportedBlindTarget(fallbackBlindTarget)
@@ -111,7 +105,6 @@ const aggregateReadyBlindTargets = (
 
 const aggregatePreviewBlindTarget = (
 	players: Client[],
-	isGlobalCoop: boolean,
 	previewKey: string,
 	row: BlindRow,
 ) => {
@@ -127,7 +120,7 @@ const aggregatePreviewBlindTarget = (
 		return null
 	}
 
-	return aggregateBlindTargets(targets, isGlobalCoop)
+	return aggregateBlindTargets(targets)
 }
 
 export const blindPreviewAction = (
@@ -146,12 +139,11 @@ export const blindPreviewAction = (
 	client.blindPreviewKey = previewKey
 	client.blindPreviewTargets = { ...targets }
 
-	const { players, isGlobalCoop } = group
+	const { players } = group
 	const aggregateTargets: Partial<Record<BlindRow, string>> = {}
 	for (const row of PREVIEW_BLIND_ROWS) {
 		const aggregateTarget = aggregatePreviewBlindTarget(
 			players,
-			isGlobalCoop,
 			previewKey,
 			row,
 		)
@@ -187,7 +179,6 @@ export const startTeamCoopBlindIfReady = (
 	lobby.teamState.deleteBlindTarget(groupId)
 	const aggregateBlindTarget = aggregateReadyBlindTargets(
 		players,
-		isGlobalCoop,
 		blindTarget,
 	)
 	if (aggregateBlindTarget) {
