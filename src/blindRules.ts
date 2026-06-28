@@ -69,6 +69,21 @@ export const hasDisconnectedTeamBlindBlocker = (
 	)
 }
 
+export const hasDisconnectedSharedBlindBlocker = (
+	lobby: Lobby,
+	player: Pick<Client, 'team'>,
+): boolean => {
+	if (isCoopLobbyType(lobby.lobbyType)) {
+		return hasDisconnectedMatchBlocker(lobby)
+	}
+
+	if (isTeamLobbyType(lobby.lobbyType)) {
+		return hasDisconnectedTeamBlindBlocker(lobby, player.team ?? 1)
+	}
+
+	return false
+}
+
 const isGlobalBlindKind = (lobby: Lobby): boolean => {
 	return isCoopLobbyType(lobby.lobbyType) || !isTeamLobbyType(lobby.lobbyType)
 }

@@ -1,6 +1,7 @@
 import type Lobby from '../Lobby.js'
 import type Client from '../Client.js'
 import { tryStartPendingBlindIfReady } from '../blindReadyHandlers.js'
+import { tryResolvePendingSkipBlindIfReady } from '../teamBlindSkipHandlers.js'
 import { pauseLobbyAnteTimerForControllerRelease } from '../lobbyAnteTimerBroadcasts.js'
 import {
 	broadcastLobbyAction,
@@ -30,6 +31,7 @@ const expireDisconnectedLobbyClient = (lobby: Lobby, client: Client) => {
 		matchStatus: 'disconnect_expired',
 	})
 	tryStartPendingBlindIfReady(lobby)
+	tryResolvePendingSkipBlindIfReady(lobby)
 }
 
 const reserveDisconnectedLobbyClient = (lobby: Lobby, client: Client) => {

@@ -9,7 +9,7 @@ import type {
 import {
 	blindReadySatisfied,
 	hasDisconnectedMatchBlocker,
-	hasDisconnectedTeamBlindBlocker,
+	hasDisconnectedSharedBlindBlocker,
 	isBlindKindValidForRow,
 	isPlayerReadyForPvpBlind,
 	normalizeBlindKind,
@@ -177,9 +177,7 @@ const hasDisconnectedGroupedBlindBlocker = (
 		return false
 	}
 
-	return isCoopLobbyType(lobby.lobbyType)
-		? hasDisconnectedMatchBlocker(lobby)
-		: hasDisconnectedTeamBlindBlocker(lobby, player.team ?? 1)
+	return hasDisconnectedSharedBlindBlocker(lobby, player)
 }
 
 const tryStartPendingGroupedBlindIfReady = (
