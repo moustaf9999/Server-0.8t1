@@ -28,7 +28,6 @@ export const isServerLogColorEnabled = () =>
 	!process.env.NO_COLOR
 
 export const isFullServerPayloadLogEnabled = () =>
-	isLocalServerLogSession() &&
 	isTruthyEnvValue(process.env.MP_SERVER_LOG_FULL_PAYLOAD)
 
 export const getServerLogPath = () =>

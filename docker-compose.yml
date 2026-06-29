@@ -11,6 +11,7 @@ services:
       GAMEPLAY_PORT: "8788"
       MP_SERVER_LOG_CONSOLE: "1"
       MP_VERBOSE_SERVER_LOG: "1"
+      MP_SERVER_LOG_FULL_PAYLOAD: "1"
     restart: unless-stopped
     volumes:
       - ./logs:/logs

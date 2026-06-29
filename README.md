@@ -25,9 +25,9 @@ For development:
 npm run dev
 ```
 
-The root `start_local_server.bat` helper enables local file logging and mirrors server trace lines to the terminal. The file log is written to `server/logs/server-runtime.log`. Local terminal logs use stable colors per `clientId` when `MP_LOCAL_SERVER=1` and `MP_SERVER_LOG_COLOR=1`. Set `MP_VERBOSE_SERVER_LOG=1` only when you need full incoming/outgoing packet traces.
+The root `start_local_server.bat` helper enables local file logging and mirrors server trace lines to the terminal. The file log is written to `server/logs/server-runtime.log`. Local terminal logs use stable colors per `clientId` when `MP_LOCAL_SERVER=1` and `MP_SERVER_LOG_COLOR=1`. Set `MP_VERBOSE_SERVER_LOG=1` when you need incoming/outgoing packet trace lines, and `MP_SERVER_LOG_FULL_PAYLOAD=1` when those trace lines should include complete packet payloads.
 
-Docker deployments enable summarized console trace logging by default through `MP_SERVER_LOG_CONSOLE=1` and `MP_VERBOSE_SERVER_LOG=1`, so provider logs show incoming and outgoing server messages except keep-alive traffic. Full payload logs are intentionally still local-only.
+Docker deployments enable full console trace logging by default through `MP_SERVER_LOG_CONSOLE=1`, `MP_VERBOSE_SERVER_LOG=1`, and `MP_SERVER_LOG_FULL_PAYLOAD=1`, so provider logs show incoming and outgoing server messages except keep-alive traffic.
 
 ## Configuration
 
